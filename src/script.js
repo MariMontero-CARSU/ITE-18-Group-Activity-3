@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import * as dat from 'lil-gui'
 import * as CANNON from 'cannon-es'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 /**
  * Base
@@ -9,6 +10,16 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // Debug
 const gui = new dat.GUI()
 const axes = new THREE.AxesHelper(3)
+const parameters = {
+    throwStr: 15,
+    captureDuration: 1.5,
+    Height: 0.2,
+}
+
+//GUI for User to test
+gui.add(parameters, 'throwStr', 5, 20).name('Throw Strenght')
+gui.add(parameters, 'captureDuration', 0.5, 4).name('Capture Duration')
+gui.add(parameters, 'Height', 0.1, 0.5).name('Float Height')
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
@@ -18,6 +29,9 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color('#202030')
 scene.add(axes)
 
+//loaders
+const gltfLoader =  new GLTFLoader()
+const textureLoader = new THREE.TextureLoader()
 
 /**
  * Sizes
@@ -74,7 +88,21 @@ scene.add(ambientLight)
 const dirLight = new THREE.DirectionalLight(0xffffff, 1)
 dirLight.position.set(5, 10, 7.5)
 dirLight.castShadow = true
+dirLight.shadow.mapSize.width = 2048
+dirLight.shadow.mapSize.height = 2048
+dirLight.shadow.camera.near = 0.5
+dirLight.shadow.camera.far = 50
+dirLight.shadow.camera.left = -10
+dirLight.shadow.camera.right = 10
+dirLight.shadow.camera.top = 10
+dirLight.shadow.camera.bottom = -10
 scene.add(dirLight)
+
+//Added pointlight for better illumination
+const pointlight = new THREE.PointLight(0xffffff, 0.8, 20)
+pointlight.position.set(0, 5, 5)
+pointlight.castShadow = true
+scene.add(pointlight)
 
 
 /**
@@ -82,6 +110,7 @@ scene.add(dirLight)
  */
 const world = new CANNON.World()
 world.gravity.set(0, -9.82, 0)
+
 
 // Contact materials (bouncy)
 const defaultMaterial = new CANNON.Material('default')
@@ -91,6 +120,17 @@ const contactMaterial = new CANNON.ContactMaterial(defaultMaterial, defaultMater
 })
 world.addContactMaterial(contactMaterial)
 world.defaultContactMaterial = contactMaterial
+
+//Groundmesh for visibility of texture 
+const groundGeometry = new THREE.PlaneGeometry(20, 20)
+const groundTexture = textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg')
+groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping
+groundTexture.repeat.set(4, 4)
+const groundMaterial = new THREE.MeshLambertMaterial({ map: groundTexture })
+const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial)
+groundMesh.rotation.x = -Math.PI / 2
+groundMesh.receiveShadow = true
+scene.add(groundMesh)
 
 // Ground (invisible)
 const groundBody = new CANNON.Body({
@@ -135,6 +175,7 @@ const pokeballBody = new CANNON.Body({
     shape: new CANNON.Sphere(0.5),
     position: new CANNON.Vec3(0, -2, 0),
     material: defaultMaterial,
+    collisionResponse: true
 })
 world.addBody(pokeballBody)
 hidePokeball()
@@ -147,6 +188,7 @@ function hidePokeball() {
     pokeballBody.position.set(0, -10, 0) // move far below scene
     pokeballBody.updateMassProperties()
 }
+
 
 
 /**
