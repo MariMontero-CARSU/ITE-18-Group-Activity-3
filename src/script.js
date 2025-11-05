@@ -144,14 +144,68 @@ world.addBody(groundBody)
 /**
  * Objects
  */
-// Pokemon Placeholder
+// Pokemon - Load actual 3D model or use placeholder
+let pokemon = new THREE.Group()
+let pokemonModel = null
+
+// Add glow effect to Pokemon
+const glowGeometry = new THREE.SphereGeometry(1.2, 32, 32)
+const glowMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff6666,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.BackSide
+})
+const pokemonGlow = new THREE.Mesh(glowGeometry, glowMaterial)
+pokemon.add(pokemonGlow)
+
+// Placeholder while model loads
 const pokemonGeo = new THREE.SphereGeometry(1, 32, 32)
-const pokemonMat = new THREE.MeshStandardMaterial({ color: 0xff6666 })
-const pokemon = new THREE.Mesh(pokemonGeo, pokemonMat)
+const pokemonMat = new THREE.MeshStandardMaterial({ 
+    color: 0xff6666,
+    metalness: 0.3,
+    roughness: 0.4,
+    emissive: 0xff3333,
+    emissiveIntensity: 0.2
+})
+const pokemonPlaceholder = new THREE.Mesh(pokemonGeo, pokemonMat)
+pokemonPlaceholder.castShadow = true
+pokemonPlaceholder.receiveShadow = true
+pokemon.add(pokemonPlaceholder)
 
 pokemon.castShadow = true
 pokemon.receiveShadow = true
 scene.add(pokemon)
+
+/* // Load Pokemon Model (from images)
+textureLoader.load(
+    '/models/Duck/screenshot/images.jpeg',
+    (texture) => {
+        console.log('Pokemon image loaded!')
+
+        const geometry = new THREE.PlaneGeometry(1, 1)
+        const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            side: THREE.DoubleSide
+        })
+
+        const pokemonModel = new THREE.Mesh(geometry, material)
+        pokemonModel.scale.set(2, 2, 2)
+        pokemonModel.position.set(0, 1, 0)
+        pokemonModel.castShadow = true
+        pokemonModel.receiveShadow = true
+
+        pokemon.remove(pokemonPlaceholder)
+        pokemon.add(pokemonModel)
+    },
+    (progress) => {
+        console.log('Loading pokemon image:', (progress.loaded / progress.total * 100).toFixed(2) + '%')
+    },
+    (error) => {
+        console.error('Error loading pokemon image:', error)
+    }
+) */
+
 
 // Pokemon Physics Body Placeholder
 const pokemonBody = new CANNON.Body({
@@ -161,11 +215,68 @@ const pokemonBody = new CANNON.Body({
 })
 world.addBody(pokemonBody)
 
-// Pokeball Placeholder
-const pokeballGeo = new THREE.SphereGeometry(0.5, 32, 32)
-const pokeballMat = new THREE.MeshStandardMaterial({ color: 0xffffff })
-const pokeball = new THREE.Mesh(pokeballGeo, pokeballMat)
+// Pokeball - Enhanced with proper colors and details
+const pokeballGroup = new THREE.Group()
 
+// Top half (red)
+const topHalfGeo = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2)
+const topHalfMat = new THREE.MeshStandardMaterial({ 
+    color: 0xee1515,
+    metalness: 0.4,
+    roughness: 0.3
+})
+const topHalf = new THREE.Mesh(topHalfGeo, topHalfMat)
+topHalf.castShadow = true
+pokeballGroup.add(topHalf)
+
+// Bottom half (white)
+const bottomHalfGeo = new THREE.SphereGeometry(0.5, 32, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)
+const bottomHalfMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    metalness: 0.4,
+    roughness: 0.3
+})
+const bottomHalf = new THREE.Mesh(bottomHalfGeo, bottomHalfMat)
+bottomHalf.castShadow = true
+pokeballGroup.add(bottomHalf)
+
+// Middle black band
+const bandGeo = new THREE.TorusGeometry(0.5, 0.08, 16, 32)
+const bandMat = new THREE.MeshStandardMaterial({ 
+    color: 0x000000,
+    metalness: 0.6,
+    roughness: 0.2
+})
+const band = new THREE.Mesh(bandGeo, bandMat)
+band.rotation.x = Math.PI / 2
+band.castShadow = true
+pokeballGroup.add(band)
+
+// Center button
+const buttonGeo = new THREE.SphereGeometry(0.15, 32, 32)
+const buttonMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    metalness: 0.8,
+    roughness: 0.1,
+    emissive: 0x4444ff,
+    emissiveIntensity: 0.3
+})
+const button = new THREE.Mesh(buttonGeo, buttonMat)
+button.castShadow = true
+pokeballGroup.add(button)
+
+// Inner button detail
+const innerButtonGeo = new THREE.SphereGeometry(0.1, 32, 32)
+const innerButtonMat = new THREE.MeshStandardMaterial({ 
+    color: 0x333333,
+    metalness: 0.9,
+    roughness: 0.1
+})
+const innerButton = new THREE.Mesh(innerButtonGeo, innerButtonMat)
+innerButton.castShadow = true
+pokeballGroup.add(innerButton)
+
+const pokeball = pokeballGroup
 pokeball.castShadow = true
 scene.add(pokeball)
 
@@ -208,13 +319,13 @@ window.addEventListener('click', (event) => {
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
 
     raycaster.setFromCamera(mouse, camera)
-    const intersects = raycaster.intersectObjects([pokemon, pokeball])
+    const intersects = raycaster.intersectObjects([pokemon, pokeball], true)
 
     if (intersects.length > 0) {
         const hit = intersects[0].object
-        if (hit === pokemon && state === 'idle') {
+        if ((hit === pokemon || pokemon.children.includes(hit)) && state === 'idle') {
             throwPokeball()
-        } else if (hit === pokeball && state === 'captured') {
+        } else if ((pokeball.children.includes(hit) || hit === pokeball) && state === 'captured') {
             releasePokemon()
         }
     }
@@ -263,7 +374,7 @@ function throwPokeball() {
     // Calc arc trajectory
     // Slight upward and forward throw toward the Pokémon (0,1,0)
     const direction = new CANNON.Vec3(0, 1.5, -8) // upward and forward impulse
-    const throwStrength = 2.5 // lower = slower, smoother arc
+    const throwStrength = parameters.throwStr / 6 // Use GUI parameter
 
     // Apply velocity
     pokeballBody.velocity.set(
@@ -282,10 +393,63 @@ function throwPokeball() {
     console.log('Pokeball thrown!')
 }
 
+// Particle effect on capture
+function createCaptureEffect() {
+    const particleCount = 50
+    const particles = new THREE.Group()
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particleGeo = new THREE.SphereGeometry(0.05, 8, 8)
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: Math.random() > 0.5 ? 0xff6666 : 0xffff66,
+            transparent: true,
+            opacity: 1
+        })
+        const particle = new THREE.Mesh(particleGeo, particleMat)
+        
+        particle.position.copy(pokemon.position)
+        
+        const angle = (i / particleCount) * Math.PI * 2
+        const radius = Math.random() * 2
+        particle.userData.velocity = {
+            x: Math.cos(angle) * radius,
+            y: Math.random() * 3,
+            z: Math.sin(angle) * radius
+        }
+        
+        particles.add(particle)
+    }
+    
+    scene.add(particles)
+    
+    // Animate particles
+    let life = 0
+    const animateParticles = () => {
+        life += 0.02
+        
+        particles.children.forEach(particle => {
+            particle.position.x += particle.userData.velocity.x * 0.05
+            particle.position.y += particle.userData.velocity.y * 0.05
+            particle.position.z += particle.userData.velocity.z * 0.05
+            particle.userData.velocity.y -= 0.1 // gravity
+            particle.material.opacity = 1 - life
+        })
+        
+        if (life < 1) {
+            requestAnimationFrame(animateParticles)
+        } else {
+            scene.remove(particles)
+        }
+    }
+    
+    requestAnimationFrame(animateParticles)
+}
+
 // Physics Contact Listener
 pokeballBody.addEventListener('collide', (e) => {
     if (e.body === pokemonBody && state === 'thrown') {
         console.log('Pokeball hit Pokemon!')
+        createCaptureEffect()
         startCaptureAnimation()
     }
 })
@@ -305,7 +469,7 @@ function startCaptureAnimation() {
     pokeballBody.updateMassProperties()
 
     const targetY = 1.5
-    const duration = 1 // seconds
+    const duration = parameters.captureDuration // Use GUI parameter
     let elapsed = 0
 
     const animate = () => {
@@ -352,6 +516,56 @@ function releasePokemon() {
     console.log('Releasing Pokemon...')
     state = 'releasing'
     pokemon.visible = true
+    
+    // Release particle effect
+    const particleCount = 30
+    const particles = new THREE.Group()
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particleGeo = new THREE.SphereGeometry(0.08, 8, 8)
+        const particleMat = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            transparent: true,
+            opacity: 1
+        })
+        const particle = new THREE.Mesh(particleGeo, particleMat)
+        
+        particle.position.copy(pokeball.position)
+        
+        const angle = (i / particleCount) * Math.PI * 2
+        particle.userData.velocity = {
+            x: Math.cos(angle) * 3,
+            y: Math.random() * 2 + 1,
+            z: Math.sin(angle) * 3
+        }
+        
+        particles.add(particle)
+    }
+    
+    scene.add(particles)
+    
+    // Animate release particles
+    let life = 0
+    const animateReleaseParticles = () => {
+        life += 0.03
+        
+        particles.children.forEach(particle => {
+            particle.position.x += particle.userData.velocity.x * 0.05
+            particle.position.y += particle.userData.velocity.y * 0.05
+            particle.position.z += particle.userData.velocity.z * 0.05
+            particle.userData.velocity.y -= 0.08
+            particle.material.opacity = 1 - life
+            particle.scale.setScalar(1 + life)
+        })
+        
+        if (life < 1) {
+            requestAnimationFrame(animateReleaseParticles)
+        } else {
+            scene.remove(particles)
+        }
+    }
+    
+    requestAnimationFrame(animateReleaseParticles)
 
     const duration = 0.1
     let elapsed = 0
@@ -386,6 +600,16 @@ const tick = () =>
     // Game Animations
     if (state === 'idle' || state === 'captured') {
         pokemon.rotation.y += 0.01
+    }
+    
+    // Animate Pokemon glow
+    if (pokemon.children[0]) {
+        pokemon.children[0].material.opacity = 0.3 + Math.sin(elapsedTime * 2) * 0.1
+    }
+    
+    // Animate Pokeball button glow when captured
+    if (state === 'captured' && pokeball.children[3]) {
+        pokeball.children[3].material.emissiveIntensity = 0.3 + Math.sin(elapsedTime * 3) * 0.2
     }
 
     // Sync Three.js mesh positions with physics
