@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 // Debug
 const gui = new dat.GUI()
 const axes = new THREE.AxesHelper(3)
+axes.visible = false
 const parameters = {
     throwStr: 15,
     captureDuration: 1.5,
