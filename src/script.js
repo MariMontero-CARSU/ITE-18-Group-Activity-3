@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 // Debug
 const gui = new dat.GUI()
 const axes = new THREE.AxesHelper(3)
+axes.visible = false
 const parameters = {
     throwStr: 15,
     captureDuration: 1.5,
@@ -359,6 +360,7 @@ function moveBodyTo(body, target, duration = 1, onComplete = () => {}) {
 // Throw Pokeball
 // TODO: Fix pokeball throw trajectory. Feels a little too stiff but my math ain't mathing anymore
 function throwPokeball() {
+    if (state !== 'idle') return
     state = 'thrown'
 
     pokeball.visible = true
@@ -366,29 +368,38 @@ function throwPokeball() {
     pokeballBody.updateMassProperties()
 
     // Start Position
-    pokeballBody.position.set(0, 1, 5)
+    pokeballBody.position.set(0, 3, 20)
 
     // Reset velocities for clean throw
     pokeballBody.velocity.setZero()
     pokeballBody.angularVelocity.setZero()
     
-    // Calc arc trajectory
-    // Slight upward and forward throw toward the Pokémon (0,1,0)
-    const direction = new CANNON.Vec3(0, 1.5, -8) // upward and forward impulse
-    const throwStrength = parameters.throwStr / 6 // Use GUI parameter
+    // Target: Pokemon's current position
+    const target = pokemonBody.position.clone()
+    const start = pokeballBody.position.clone()
 
-    // Apply velocity
+    // Direction toward Pokemon
+    const direction = target.vsub(start)
+    direction.normalize()
+
+    // Throw strength (adjust via GUI)
+    const throwStrength = parameters.throwStr
+
+    // Add a bit of upward arc
+    direction.y += 0.5  // tweak this to adjust height of the curve
+
+    // Scale velocity by strength
     pokeballBody.velocity.set(
         direction.x * throwStrength,
         direction.y * throwStrength,
         direction.z * throwStrength
     )
 
-    // Apply spin
+    // Add spin for realism
     pokeballBody.angularVelocity.set(
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1,
-        Math.random() * 2 - 1
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 10
     )
 
     console.log('Pokeball thrown!')
