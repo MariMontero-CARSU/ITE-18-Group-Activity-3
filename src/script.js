@@ -178,6 +178,7 @@ pokemon.receiveShadow = true
 scene.add(pokemon)
 
 /* // Load Pokemon Model (from images)
+//This is for test only not the exact object (pokemon)
 textureLoader.load(
     '/models/Duck/screenshot/images.jpeg',
     (texture) => {
